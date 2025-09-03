@@ -22,7 +22,7 @@ El parcial consistió en tres partes principales, cada una abordada en un script
 - Personalización del mensaje de error para intentos de acceso cancelados.
 - Validación del correcto funcionamiento de la autenticación.
 
-📂 **Carpeta/Archivo:** `01-apache-pam/`
+
 
 ---
 
@@ -33,7 +33,7 @@ El parcial consistió en tres partes principales, cada una abordada en un script
 - Pruebas de resolución directa e inversa desde clientes.
 - Verificación de funcionamiento del esclavo sin conexión al maestro.
 
-📂 **Carpeta/Archivo:** `02-dns-maestro-esclavo/`
+
 
 ---
 
@@ -43,7 +43,6 @@ El parcial consistió en tres partes principales, cada una abordada en un script
 - Creación de una **página personalizada** de prueba.
 - Validación del funcionamiento desde dispositivos externos.
 
-📂 **Carpeta/Archivo:** `03-ngrok/`
 
 ---
 
