@@ -1,0 +1,128 @@
+########################################################## PUNTO DOS ##############################################
+
+# 1) INSTALAR BIND9 (en maestro y esclavo)
+###############################
+sudo apt update
+sudo apt install -y bind9 bind9utils dnsutils
+
+# Opciones globales 
+sudo tee /etc/bind/named.conf.options > /dev/null <<'EOF'
+options {
+    directory "/var/cache/bind";
+    listen-on { any; };
+    listen-on-v6 { any; };
+    allow-query { any; };
+    recursion yes;
+    dnssec-validation no;
+    auth-nxdomain no;
+};
+
+
+
+###############################
+# 2) CONFIGURACIÓN DEL MAESTRO (192.168.50.30 en mi caso)
+###############################
+
+# Zonas personalizadas
+sudo tee /etc/bind/named.conf.local > /dev/null <<'EOF'
+zone "empresa.local" {
+    type master;
+    file "/etc/bind/db.empresa.local";
+    allow-transfer { 192.168.50.20; };  
+    also-notify { 192.168.50.20; };
+    notify yes;
+};
+
+zone "50.168.192.in-addr.arpa" {
+    type master;
+    file "/etc/bind/db.50.168.192";
+    allow-transfer { 192.168.50.20; };
+    also-notify { 192.168.50.20; };
+    notify yes;
+};
+EOF
+
+# Zona directa
+sudo tee /etc/bind/db.empresa.local > /dev/null <<'EOF'
+$TTL 86400
+@   IN  SOA ns1.empresa.local. admin.empresa.local. (
+        2025083001 ; Serial
+        3600       ; Refresh
+        1800       ; Retry
+        1209600    ; Expire
+        86400 )    ; Minimum
+
+@       IN  NS  ns1.empresa.local.
+@       IN  NS  ns2.empresa.local.
+
+ns1     IN  A   192.168.50.30
+ns2     IN  A   192.168.50.20
+maestro IN  A   192.168.50.30
+esclavo IN  A   192.168.50.20
+cliente IN  A   192.168.50.10
+
+www     IN  CNAME maestro.empresa.local.
+
+
+
+
+
+
+# Zona inversa
+sudo tee /etc/bind/db.50.168.192 > /dev/null <<'EOF'
+$TTL 86400
+@   IN  SOA ns1.empresa.local. admin.empresa.local. (
+        2025083001
+        3600
+        1800
+        1209600
+        86400 )
+
+@       IN  NS  ns1.empresa.local.
+@       IN  NS  ns2.empresa.local.
+
+30      IN  PTR maestro.empresa.local.
+20      IN  PTR esclavo.empresa.local.
+10      IN  PTR cliente.empresa.local.
+EOF
+
+# Verificación y reinicio
+sudo named-checkconf
+sudo named-checkzone empresa.local /etc/bind/db.empresa.local
+sudo named-checkzone 50.168.192.in-addr.arpa /etc/bind/db.50.168.192
+sudo systemctl restart bind9
+sudo systemctl enable bind9
+
+
+###############################
+# 3) CONFIGURACIÓN DEL ESCLAVO (192.168.50.20)
+###############################
+
+sudo tee /etc/bind/named.conf.local > /dev/null <<'EOF'
+zone "empresa.local" {
+    type slave;
+    masters { 192.168.50.30; };
+    file "/var/cache/bind/empresa.local.zone";
+    allow-notify { 192.168.50.30; };
+};
+
+zone "50.168.192.in-addr.arpa" {
+    type slave;
+    masters { 192.168.50.30; };
+    file "/var/cache/bind/50.168.192.zone";
+    allow-notify { 192.168.50.30; };
+};
+EOF
+
+sudo systemctl restart bind9
+sudo systemctl enable bind9
+
+
+###############################
+# 4) CLIENTE (192.168.50.10)
+###############################
+
+# Instalar utilidades para comenzar a tirar pruebas
+sudo apt update
+sudo apt install -y dnsutils
+
