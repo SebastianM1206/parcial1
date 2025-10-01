@@ -1,0 +1,72 @@
+PUNTO DOS
+
+#Instalamos y configuramos por defecto
+sudo apt-get update
+sudo apt-get install -y ufw
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+
+#Reenvio de trafico permitido
+sudo sysctl -w net.ipv4.ip_forward=1
+echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
+
+#Se edita /etc/ufw/before.rules antes del filter
+*nat
+:PREROUTING ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+
+# Redirigir consultas internas (en la red interna)
+-A PREROUTING -i eth1 -p udp --dport 53 -j DNAT --to-destination 192.168.50.20
+-A PREROUTING -i eth1 -p tcp --dport 53 -j DNAT --to-destination 192.168.50.20
+
+
+# Redirigir consultas DNS que entran por eth2 (host-only) hacia esclavo
+-A PREROUTING -i eth2 -p udp --dport 53 -j DNAT --to-destination 192.168.50.20
+-A PREROUTING -i eth2 -p tcp --dport 53 -j DNAT --to-destination 192.168.50.20
+
+# Hacer masquerade para que las respuestas vuelvan al host (por eth2)
+-A POSTROUTING -o eth1 -j MASQUERADE
+
+COMMIT
+
+
+
+
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+# Permitir consultas DNS de clientes internos
+sudo ufw allow in on eth1 to any port 53 proto udp
+sudo ufw allow in on eth1 to any port 53 proto tcp
+
+# Permitir consultas DNS desde tu host (eth2)
+sudo ufw allow in on eth2 to any port 53 proto udp
+sudo ufw allow in on eth2 to any port 53 proto tcp
+sudo ufw allow in on eth2 to any port 22 proto tcp
+
+
+
+#En el maestro y el esclavo es importante: 
+sudo ufw reset
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+# Que solo firewall puede preguntar  
+sudo ufw allow from 192.168.50.5 to any port 53 proto udp
+sudo ufw allow from 192.168.50.5 to any port 53 proto tcp
+
+sudo ufw enable
+sudo ufw status verbose
+
+
+
+
+#Pruebas realizadas desde el anfitrión (usando el firewall como DNS)
+nslookup www.empresa.local 192.168.56.5
+nslookup intranet.empresa.local 192.168.56.5
+nslookup cliente.empresa.local 192.168.56.5
+
+
+
+
